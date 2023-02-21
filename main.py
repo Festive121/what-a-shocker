@@ -1,21 +1,48 @@
+# uvicorn main:app --host 0.0.0.0 --port 8000
+# cloudflared tunnel --config /home/shack/.cloudflared/config.yaml run
+
 import RPi.GPIO as GPIO
 import time
 import subprocess
 import secrets
 import asyncio
 from fastapi import FastAPI, Depends, Request, Response, HTTPException, status
+from fastapi.responses import PlainTextResponse
+from fastapi.routing import APIRoute
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from starlette.responses import HTMLResponse
+from typing import Callable
+from uuid import UUID, uuid4
+
+
+class CustomRoute(APIRoute):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lock = asyncio.Lock()
+
+    def get_route_handler(self) -> Callable:
+        original_route_handler = super().get_route_handler()
+
+        async def custom_route_handler(request: Request) -> Response:
+            await self.lock.acquire()
+            response: Response = await original_route_handler(request)
+            self.lock.release()
+            return response
+
+        return custom_route_handler
 
 app = FastAPI()
 security = HTTPBasic()
+auth = False
 
 app.openapi = {"info": {"title": "Remote Shock", "verison": "1.0.0"}}
+app.router.route_class = CustomRoute
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
 
 def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
     current_username_bytes = credentials.username.encode("utf8")
@@ -37,35 +64,39 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
 
 @app.get("/")
 async def read_current_user(response: Response, str = Depends(get_current_username)):
+    global auth
+    auth = True
     response.headers["Location"] = "/home"
     response.status_code = 302
 
 @app.get("/home", response_class=HTMLResponse)
 async def read_item(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-@app.get("/run")
-async def run(response: Response):
-    result = subprocess.run(["python", "script.py"], capture_output=True)
-    response.headers["Location"] = "/"
-    response.status_code = 302
+    global users
+    if auth:
+        return templates.TemplateResponse("index.html", {"request": request})
+    else:
+        return PlainTextResponse(content="UNAUTHORIZED")
 
 @app.get("/runit")
+async def run(response: Response):
+    if auth:
+        result = subprocess.run(["python", "script.py"], capture_output=True)
+        response.headers["Location"] = "/"
+        response.status_code = 302
+    else:
+        return PlainTextResponse(content="UNAUTHORIZED")
+
+@app.get("/run")
 def runit(response: Response):
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(False)
-    GPIO.setup(18, GPIO.OUT)
+    if auth:
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+        GPIO.setup(18, GPIO.OUT)
+        GPIO.output(18, True)
+        time.sleep(1)
+        GPIO.output(18, False)
+        response.headers["Location"] = "/"
+        response.status_code = 302
+    else:
+        return PlainTextResponse(content="UNAUTHORIZED")
 
-    GPIO.output(18, True)
-    time.sleep(1)
-    GPIO.output(18, False)
-    return {"message": "ran it"}    
-
-@app.get("/test")
-async def test():
-    return {"message": "test"}
-
-
-if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run("main:app --host 0.0.0.0 --port 8000")
