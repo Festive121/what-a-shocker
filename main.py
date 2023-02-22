@@ -77,15 +77,6 @@ async def read_item(request: Request):
     else:
         return PlainTextResponse(content="UNAUTHORIZED")
 
-@app.get("/runit")
-async def run(response: Response):
-    if auth:
-        result = subprocess.run(["python", "script.py"], capture_output=True)
-        response.headers["Location"] = "/"
-        response.status_code = 302
-    else:
-        return PlainTextResponse(content="UNAUTHORIZED")
-
 @app.get("/run")
 def runit(response: Response):
     if auth:
