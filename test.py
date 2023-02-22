@@ -69,7 +69,7 @@ verifier = BasicVerifier(
 app = FastAPI()
 
 
-@app.post("/create_session/{name}")
+@app.get("/create_session/{name}")
 async def create_session(name: str, response: Response):
 
     session = uuid4()
