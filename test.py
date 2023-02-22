@@ -1,7 +1,7 @@
-import threading
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, Response, HTTPException, Depends
+from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
-from starlette.types import Receive, Scope, Send
+import threading
 
 app = FastAPI()
 
@@ -22,10 +22,11 @@ one_user_at_a_time.current_user = None
 
 # Custom route class that uses the one_user_at_a_time dependency
 class OneUserAtATimeRoute(APIRoute):
-    async def __call__(self, scope: Scope, receive: Receive, send: Send):
-        request = Request(scope, receive=receive)
-        response = await one_user_at_a_time(request)
-        await response(scope, receive, send)
+    def get_route_handler(self):
+        original_route_handler = super().get_route_handler()
+        async def new_route_handler(request: Request):
+            return await one_user_at_a_time(request)
+        return new_route_handler or original_route_handler
 
 # Add the custom route class to the app
 app.router.route_class = OneUserAtATimeRoute
