@@ -15,7 +15,7 @@ async def one_user_at_a_time(request: Request):
             raise HTTPException(status_code=423, detail="Only one user is allowed on the website at a time.")
         
         one_user_at_a_time.current_user = "user_id_here"
-        response = await request.app.router.handle_request(request)
+        response = await app(request)
         one_user_at_a_time.current_user = None
         return response
 one_user_at_a_time.current_user = None
