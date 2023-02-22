@@ -27,9 +27,6 @@ def generate_token():
 
 # Endpoint that requires a one-time token for access
 @app.get("/protected_endpoint")
-def protected_endpoint(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    # Extract the token from the credentials
-    token = credentials.credentials
-    # Check if the token is valid and remove it from the dictionary if it is
-    requires_token(token)
+@requires_token
+def protected_endpoint():
     return {"message": "Access granted!"}
