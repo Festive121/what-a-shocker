@@ -1,38 +1,35 @@
-from fastapi import FastAPI, Request, Response, HTTPException, Depends
-from fastapi.responses import JSONResponse
-from fastapi.routing import APIRoute
-import threading
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 app = FastAPI()
 
-# Initialize a lock
-lock = threading.Lock()
+# A dictionary to store the one-time tokens
+tokens = {}
 
-# Dependency to enforce one user at a time
-async def one_user_at_a_time(request: Request):
-    with lock:
-        if one_user_at_a_time.current_user is not None:
-            raise HTTPException(status_code=423, detail="Only one user is allowed on the website at a time.")
-        
-        one_user_at_a_time.current_user = "user_id_here"
-        response = await app(request)
-        one_user_at_a_time.current_user = None
-        return response
-one_user_at_a_time.current_user = None
+# The security scheme to use for the endpoint that requires a one-time token
+bearer_scheme = HTTPBearer()
 
-# Custom route class that uses the one_user_at_a_time dependency
-class OneUserAtATimeRoute(APIRoute):
-    def get_route_handler(self):
-        original_route_handler = super().get_route_handler()
-        async def new_route_handler(request: Request):
-            return await one_user_at_a_time(request)
-        return new_route_handler or original_route_handler
+# A decorator function to enforce the use of a one-time token
+def requires_token(token: str):
+    if token not in tokens:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    # Remove the token from the dictionary to ensure it can only be used once
+    tokens.pop(token)
 
-# Add the custom route class to the app
-app.router.route_class = OneUserAtATimeRoute
+# Endpoint that generates a one-time token
+@app.get("/generate_token")
+def generate_token():
+    # Generate a unique token (e.g. using the secrets module)
+    token = "unique_token_here"
+    # Store the token in the dictionary with a value of True
+    tokens[token] = True
+    return {"token": token}
 
-@app.get("/website")
-async def website():
-    # Process the request
-    # ...
-    return {"message": "Welcome to the website!"}
+# Endpoint that requires a one-time token for access
+@app.get("/protected_endpoint")
+def protected_endpoint(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    # Extract the token from the credentials
+    token = credentials.credentials
+    # Check if the token is valid and remove it from the dictionary if it is
+    requires_token(token)
+    return {"message": "Access granted!"}
