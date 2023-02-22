@@ -34,7 +34,7 @@ def generate_token():
     tokens[token] = True
     return {"token": token}
 
-@app.get("check")
+@app.get("/check")
 async def authenticate_token(credentials: HTTPAuthorizationCredentials):
     token = credentials.credentials
     if token != "secret-token":
