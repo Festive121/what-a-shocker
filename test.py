@@ -1,31 +1,30 @@
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 import threading
 
 app = FastAPI()
 
-class WebsiteLock:
-    def __init__(self):
-        self.lock = threading.Lock()
-        self.current_user = None
-    
-    def __enter__(self):
-        self.lock.acquire()
-        return self
-    
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.current_user = None
-        self.lock.release()
+# Initialize a lock
+lock = threading.Lock()
 
-website_lock = WebsiteLock()
+# Decorator function to enforce one user at a time
+def one_user_at_a_time(func):
+    def wrapper(*args, **kwargs):
+        with lock:
+            if wrapper.current_user is not None:
+                return JSONResponse(content={"message": "Only one user is allowed on the website at a time."})
+            
+            wrapper.current_user = "user_id_here"
+            try:
+                return func(*args, **kwargs)
+            finally:
+                wrapper.current_user = None
+    wrapper.current_user = None
+    return wrapper
 
 @app.get("/website")
+@one_user_at_a_time
 async def website():
-    with website_lock as lock:
-        if lock.current_user is not None:
-            return {"message": "Only one user is allowed on the website at a time."}
-        
-        lock.current_user = "user_id_here"
-        
-        # Process the request
-        # ...
-        return {"message": "Welcome to the website!"}
+    # Process the request
+    # ...
+    return {"message": "Welcome to the website!"}
