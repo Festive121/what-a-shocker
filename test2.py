@@ -10,9 +10,6 @@ from fastapi import FastAPI, Depends, Request, Response, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from fastapi_sessions.backends.implementations import InMemoryBackend
-from fastapi_sessions.session_verifier import SessionVerifier
-from fastapi_sessions.frontends.implementations import SessionCookie, CookieParameters
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -20,9 +17,6 @@ from starlette.responses import HTMLResponse
 from typing import Callable
 from uuid import UUID, uuid4
 
-
-class SessionData(BaseModel):
-    username: str
 
 class CustomRoute(APIRoute):
     def __init__(self, *args, **kwargs):
@@ -43,55 +37,6 @@ class CustomRoute(APIRoute):
 app = FastAPI()
 security = HTTPBasic()
 auth = False
-cookies = CookieParameters()
-cookie = SessionCookie(
-    cookie_name="cookie",
-    identifier="general_verifier",
-    auto_error=True,
-    secret_key="DONOTUSE"
-    cookie_params=cookie_params,
-)
-backend = InMemoryBackend[UUID, SessionData]()
-
-class BasicVerifier(SessionVerifier[UUID, SessionData]):
-    def __init__(
-        self,
-        *,
-        identifier: str,
-        auto_error: bool,
-        backend: InMemoryBackend[UUID, SessionData],
-        auth_http_exception: HTTPException,
-    ):
-        self._identifier = identifier
-        self._auto_error = auto_error
-        self._backend = backend
-        self._auth_http_exception = auth_http_exception
-    
-    @property
-    def identifier(self:
-        return self._identifier)
-
-    @property
-    def backend(self):
-        return self._backend
-
-    @property
-    def auto_error(self):
-        return self._auto_error
-    
-    @property
-    def auth_http_exception(self):
-        return self._auth_http_exception
-    
-    def verify_session(self, model: SessionData) -> bool;
-        return True
-
-verifier = BasicVerifier(
-    identifier="general_verifier",
-    auto_error=True,
-    backend=backend,
-    auth_http_exception=HTTPException(status_code=403, detail="invalid session"),
-)
 
 app.openapi = {"info": {"title": "Remote Shock", "verison": "1.0.0"}}
 app.router.route_class = CustomRoute
@@ -121,18 +66,12 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
 async def read_current_user(response: Response, str = Depends(get_current_username)):
     global auth
     auth = True
-    
-    session = uuid4()
-    data = SessionData(username=USER)
-
-    await backend.create(session, data)
-    cookie.attach_to_response(response, session)
-
     response.headers["Location"] = "/home"
     response.status_code = 302
 
-@app.get("/home", response_class=HTMLResponse, dependencies=[Depends(cookie)])
-async def read_item(request: Request, session_data: SessionData = Depends(verifier)):
+@app.get("/home", response_class=HTMLResponse)
+async def read_item(request: Request):
+    global users
     if auth:
         return templates.TemplateResponse("index.html", {"request": request})
     else:
