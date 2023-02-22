@@ -10,11 +10,20 @@ tokens = {}
 bearer_scheme = HTTPBearer()
 
 # A decorator function to enforce the use of a one-time token
-def requires_token(token: str):
-    if token not in tokens:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    # Remove the token from the dictionary to ensure it can only be used once
-    tokens.pop(token)
+def requires_token(func):
+    @wraps(func)
+    async def decorated(*args, **kwargs):
+        credentials: HTTPAuthorizationCredentials = HTTPBearer()
+        try:
+            token = await authenticate_token(credentials)
+        except ValueError as e:
+            raise HTTPException(status_code=401, detail=str(e))
+        if token not in tokens:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        tokens.pop(token)
+        return await func(*args, **kwargs)
+    return decorated
+
 
 # Endpoint that generates a one-time token
 @app.get("/generate_token")
@@ -25,8 +34,8 @@ def generate_token():
     tokens[token] = True
     return {"token": token}
 
-# Endpoint that requires a one-time token for access
-@app.get("/protected_endpoint")
-@requires_token
-def protected_endpoint():
-    return {"message": "Access granted!"}
+async def authenticate_token(credentials: HTTPAuthorizationCredentials):
+    token = credentials.credentials
+    if token != "secret-token":
+        raise ValueError("Invalid token")
+    return token
