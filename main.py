@@ -1,4 +1,4 @@
-# uvicorn main:app --host 0.0.0.0 --port 8000
+# uvicorn main:app --host 192.168.1.105 --port 8000
 # cloudflared tunnel --config /home/shack/.cloudflared/config.yaml run
 
 import RPi.GPIO as GPIO
