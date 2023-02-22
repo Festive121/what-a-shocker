@@ -26,7 +26,7 @@ def requires_token(func):
 
 
 # Endpoint that generates a one-time token
-@app.get("/generate_token")
+@app.get("/gen")
 def generate_token():
     # Generate a unique token (e.g. using the secrets module)
     token = "unique_token_here"
@@ -34,6 +34,7 @@ def generate_token():
     tokens[token] = True
     return {"token": token}
 
+@app.get("check")
 async def authenticate_token(credentials: HTTPAuthorizationCredentials):
     token = credentials.credentials
     if token != "secret-token":
