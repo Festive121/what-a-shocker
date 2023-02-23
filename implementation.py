@@ -1,13 +1,11 @@
 # uvicorn main:app --host 192.168.1.105 --port 8000
 # cloudflared tunnel --config /home/shack/.cloudflared/config.yaml run
 
-import asyncio
-import os
-import psutil
 import RPi.GPIO as GPIO
+import time
 import subprocess
 import secrets
-import time
+import asyncio
 from fastapi import FastAPI, Depends, Request, Response, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from fastapi.routing import APIRoute
@@ -17,7 +15,6 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 from typing import Callable
-import uvicorn
 from uuid import UUID, uuid4
 
 
@@ -76,9 +73,6 @@ async def read_current_user(response: Response, str = Depends(get_current_userna
 async def read_item(request: Request):
     if auth:
         return templates.TemplateResponse("index.html", {"request": request})
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(10, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         while True:
             if GPIO.input(10) == GPIO.HIGH:
                 parent_pid = os.getpid()
@@ -88,6 +82,7 @@ async def read_item(request: Request):
                 parent.kill()
     else:
         return PlainTextResponse(content="UNAUTHORIZED")
+    
 
 @app.get("/run")
 def runit(response: Response):
@@ -103,5 +98,3 @@ def runit(response: Response):
     else:
         return PlainTextResponse(content="UNAUTHORIZED")
 
-if __name__ == '__main__':
-    uvicorn.run(app, host='192.168.1.105', port=8000)
