@@ -97,3 +97,5 @@ def runit(response: Response):
     else:
         return PlainTextResponse(content="UNAUTHORIZED")
 
+if __name__ == '__main__':
+    uvicorn.run(app, host='192.168.1.105', port=8000)
