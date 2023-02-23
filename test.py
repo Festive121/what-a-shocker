@@ -1,7 +1,9 @@
 import os
-import fastapi
+from fastapi import FastAPI
 import uvicorn
 import psutil
+
+app = FastAPI()
 
 @app.get("/quit")
 def iquit():
