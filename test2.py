@@ -71,7 +71,6 @@ async def read_current_user(response: Response, str = Depends(get_current_userna
 
 @app.get("/home", response_class=HTMLResponse)
 async def read_item(request: Request):
-    global users
     if auth:
         return templates.TemplateResponse("index.html", {"request": request})
     else:
