@@ -10,3 +10,6 @@ import psutil
         for child in parent.children(recursive=True):  # or parent.children() for recursive=False
             child.kill()
         parent.kill()
+    
+if __name__ == '__main__':
+    uvicorn.run(app, host='192.168.1.105', port=8000)
