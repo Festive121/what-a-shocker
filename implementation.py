@@ -74,6 +74,9 @@ async def read_current_user(response: Response, str = Depends(get_current_userna
 async def read_item(request: Request):
     if auth:
         return templates.TemplateResponse("index.html", {"request": request})
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(10, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         while True:
             if GPIO.input(10) == GPIO.HIGH:
                 parent_pid = os.getpid()
