@@ -73,8 +73,16 @@ async def read_current_user(response: Response, str = Depends(get_current_userna
 async def read_item(request: Request):
     if auth:
         return templates.TemplateResponse("index.html", {"request": request})
+        while True:
+            if GPIO.input(10) == GPIO.HIGH:
+                parent_pid = os.getpid()
+                parent = psutil.Process(parent_pid)
+                for child in parent.children(recursive=True):  # or parent.children() for recursive=False
+                    child.kill()
+                parent.kill()
     else:
         return PlainTextResponse(content="UNAUTHORIZED")
+    
 
 @app.get("/run")
 def runit(response: Response):
