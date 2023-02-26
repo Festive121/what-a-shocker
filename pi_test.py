@@ -1,6 +1,7 @@
 import RPi.GPIO as GPIO
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse
+import uvicorn
 
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(10, GPIO.IN)
@@ -50,3 +51,6 @@ async def monitor():
             await asyncio.sleep(1)
 
     return StreamingResponse(pin_stream(), media_type="text/event-stream")
+
+if __name__ == '__main__':
+    uvicorn.run(app, host='192.168.1.105', port=8000)
