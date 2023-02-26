@@ -2,7 +2,6 @@
 # cloudflared tunnel --config /home/shack/.cloudflared/config.yaml run
 
 import asyncio
-import os
 import RPi.GPIO as GPIO
 import secrets
 import subprocess
@@ -18,12 +17,6 @@ from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 from typing import Callable
 from uuid import UUID, uuid4
-
-
-
-GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(10, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 
 class CustomRoute(APIRoute):
@@ -98,11 +91,6 @@ def runit(response: Response):
         response.status_code = 302
     else:
         return PlainTextResponse(content="UNAUTHORIZED")
-
-
-while True:
-    if GPIO.input(10) == GPIO.HIGH:
-        os.kill(os.getpid(), 9)
 
 
 if __name__ == "__main__":
