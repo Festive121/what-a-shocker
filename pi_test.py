@@ -1,6 +1,6 @@
 import RPi.GPIO as GPIO
 from fastapi import FastAPI, Request, BackgroundTasks
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 import asyncio
 import uvicorn
 
