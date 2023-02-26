@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI
 import uvicorn
 import psutil
-import RPi.GPIO as GPIO # Import Raspberry Pi GPIO library
+import RPi.GPIO as GPIO
 
 app = FastAPI()
 
@@ -16,7 +16,7 @@ def iquit():
         if GPIO.input(10) == GPIO.HIGH:
             parent_pid = os.getpid()
             parent = psutil.Process(parent_pid)
-            for child in parent.children(recursive=True):  # or parent.children() for recursive=False
+            for child in parent.children(recursive=True):
                 child.kill()
             parent.kill()
 
