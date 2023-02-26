@@ -34,11 +34,10 @@ async def read_root(request: Request, background_tasks: BackgroundTasks):
     async def monitor_pin():
         while True:
             if GPIO.input(10):
-                status = "Active"
+                yield "Active"
             else:
-                status = "Inactive"
+                yield "Inactive"
             await asyncio.sleep(1)
-            yield status
 
     # Start the monitor_pin function as a background task
     background_tasks.add_task(monitor_pin)
@@ -47,26 +46,12 @@ async def read_root(request: Request, background_tasks: BackgroundTasks):
     return html_content
 
 @app.get("/monitor")
-async def monitor(background_tasks: BackgroundTasks):
-    async def pin_stream(response):
+async def monitor():
+    async def pin_stream():
         async for status in monitor_pin():
-            await response.write("data: {}\n\n".format(status))
+            yield "data: {}\n\n".format(status)
 
-    async def monitor_pin():
-        while True:
-            if GPIO.input(10):
-                status = "Active"
-            else:
-                status = "Inactive"
-            await asyncio.sleep(1)
-            yield status
-
-    # Start the pin_stream function as a background task
-    response = StreamingResponse(pin_stream, media_type="text/event-stream")
-    background_tasks.add_task(response.__call__, response)
-
-    # Return the StreamingResponse object
-    return response
+    return StreamingResponse(pin_stream(), media_type="text/event-stream")
 
 if __name__ == '__main__':
     uvicorn.run(app, host='192.168.1.105', port=8000)
