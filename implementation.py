@@ -39,6 +39,10 @@ app = FastAPI()
 security = HTTPBasic()
 auth = False
 
+GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(10, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+
 app.openapi = {"info": {"title": "Remote Shock", "verison": "1.0.0"}}
 app.router.route_class = CustomRoute
 app.mount("/static", StaticFiles(directory="static"), name="static")
