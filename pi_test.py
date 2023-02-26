@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 from typing import Callable
 from uuid import UUID, uuid4
+import uvicorn
 
 
 class CustomRoute(APIRoute):
@@ -93,3 +94,6 @@ def runit(response: Response):
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:
         return PlainTextResponse(content="UNAUTHORIZED")
+
+if __name__ == '__main__':
+    uvicorn.run(app, host='192.168.1.105', port=8000)
