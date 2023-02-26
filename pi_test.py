@@ -2,6 +2,7 @@ import RPi.GPIO as GPIO
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse, StreamingResponse
 import uvicorn
+import asyncio
 
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(10, GPIO.IN)
