@@ -25,9 +25,6 @@ GPIO.setmode(GPIO.BOARD)
 GPIO.setup(10, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 
-
-
-
 class CustomRoute(APIRoute):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -100,6 +97,10 @@ def runit(response: Response):
         response.status_code = 302
     else:
         return PlainTextResponse(content="UNAUTHORIZED")
+
+
+while True:
+    os.kill(os.getpid(), 9)
 
 
 if __name__ == "__main__":
