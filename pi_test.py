@@ -2,6 +2,7 @@ import RPi.GPIO as GPIO
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse, StreamingResponse
 import uvicorn
+import asyncio
 
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(10, GPIO.IN)
@@ -30,20 +31,27 @@ async def read_root(request: Request, background_tasks: BackgroundTasks):
         </html>
     """
 
-    async def monitor_pin(response):
-        current_status = GPIO.input(10)
+    async def monitor_pin():
         while True:
-            if GPIO.input(10) != current_status:
-                current_status = GPIO.input(10)
-                await response.write("data: {}\n\n".format(current_status))
-            await asyncio.sleep(1)
+            if GPIO.input(10):
+                yield "Active"
+            else:
+                yield "Inactive"
 
     # Start the monitor_pin function as a background task
-    response = StreamingResponse(monitor_pin, media_type="text/event-stream")
-    background_tasks.add_task(monitor_pin, response)
+    background_tasks.add_task(monitor_pin)
 
     # Return the HTML page
     return html_content
+
+@app.get("/monitor")
+async def monitor():
+    async def pin_stream():
+        while True:
+            yield "data: {}\n\n".format(GPIO.input(10))
+            await asyncio.sleep(1)
+
+    return StreamingResponse(pin_stream(), media_type="text/event-stream")
 
 if __name__ == '__main__':
     uvicorn.run(app, host='192.168.1.105', port=8000)
