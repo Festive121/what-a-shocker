@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 from typing import Callable
+import uvicorn
 from uuid import UUID, uuid4
 
 
