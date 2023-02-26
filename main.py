@@ -1,11 +1,12 @@
 # uvicorn main:app --host 192.168.1.105 --port 8000
 # cloudflared tunnel --config /home/shack/.cloudflared/config.yaml run
 
+import asyncio
 import RPi.GPIO as GPIO
 import time
-import subprocess
 import secrets
-import asyncio
+import subprocess
+import uvicorn
 from fastapi import FastAPI, Depends, Request, Response, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from fastapi.routing import APIRoute
@@ -91,3 +92,6 @@ def runit(response: Response):
     else:
         return PlainTextResponse(content="UNAUTHORIZED")
 
+
+if __name__ == "__main__":
+    uvicorn.run(app, host='192.168.1.105', port=8000)
