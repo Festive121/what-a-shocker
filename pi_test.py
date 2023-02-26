@@ -4,17 +4,16 @@ import subprocess
 import secrets
 import asyncio
 from fastapi import FastAPI, Depends, Request, Response, HTTPException, status
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import PlainTextResponse, HTMLResponse
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from starlette.responses import HTMLResponse
+from starlette.responses import StreamingResponse
 from typing import Callable
 from uuid import UUID, uuid4
 import uvicorn
-
 
 class CustomRoute(APIRoute):
     def __init__(self, *args, **kwargs):
@@ -32,7 +31,6 @@ class CustomRoute(APIRoute):
 
         return custom_route_handler
 
-
 app = FastAPI()
 security = HTTPBasic()
 auth = False
@@ -42,6 +40,8 @@ app.router.route_class = CustomRoute
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(10, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
     current_username_bytes = credentials.username.encode("utf8")
@@ -60,7 +60,6 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
         )
     return credentials.username
 
-
 @app.get("/")
 async def read_current_user(response: Response, str = Depends(get_current_username)):
     global auth
@@ -68,32 +67,29 @@ async def read_current_user(response: Response, str = Depends(get_current_userna
     response.headers["Location"] = "/home"
     response.status_code = 302
 
-
 @app.get("/home", response_class=HTMLResponse)
 async def read_item(request: Request):
     if auth:
+        def button_checker():
+            while True:
+                if GPIO.input(10) == GPIO.HIGH:
+                    subprocess.run(['sudo', 'shutdown', '-h', 'now'])
+                time.sleep(0.1)
+
         return templates.TemplateResponse("index.html", {"request": request})
     else:
         return PlainTextResponse(content="UNAUTHORIZED")
 
-
 @app.get("/run")
 def runit(response: Response):
     if auth:
-        monitor_pin = 10  # Pin 10 for the button
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(monitor_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-
-        async def event_stream():
-            while True:
-                if GPIO.input(monitor_pin) == GPIO.HIGH:
-                    yield "event: button_press\n"
-                    yield "data: {}\n\n"
-                await asyncio.sleep(0.1)
-
-        return StreamingResponse(event_stream(), media_type="text/event-stream")
+        GPIO.setwarnings(False)
+        GPIO.setup(18, GPIO.OUT)
+        GPIO.output(18, True)
+        time.sleep(1)
+        GPIO.output(18, False)
+        response.headers["Location"] = "/"
+        response.status_code = 302
     else:
         return PlainTextResponse(content="UNAUTHORIZED")
-
-if __name__ == '__main__':
-    uvicorn.run(app, host='192.168.1.105', port=8000)
