@@ -1,58 +1,95 @@
 import RPi.GPIO as GPIO
-from fastapi import FastAPI, Request, BackgroundTasks
-from fastapi.responses import HTMLResponse, StreamingResponse
-import uvicorn
+import time
+import subprocess
+import secrets
 import asyncio
+from fastapi import FastAPI, Depends, Request, Response, HTTPException, status
+from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.routing import APIRoute
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+from starlette.responses import HTMLResponse
+from typing import Callable
+from uuid import UUID, uuid4
 
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(10, GPIO.IN)
+
+class CustomRoute(APIRoute):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lock = asyncio.Lock()
+
+    def get_route_handler(self) -> Callable:
+        original_route_handler = super().get_route_handler()
+
+        async def custom_route_handler(request: Request) -> Response:
+            await self.lock.acquire()
+            response: Response = await original_route_handler(request)
+            self.lock.release()
+            return response
+
+        return custom_route_handler
+
 
 app = FastAPI()
+security = HTTPBasic()
+auth = False
 
-async def monitor_pin():
-    while True:
-        if GPIO.input(10):
-            yield "Active"
-        else:
-            yield "Inactive"
-        await asyncio.sleep(1)
+app.openapi = {"info": {"title": "Remote Shock", "verison": "1.0.0"}}
+app.router.route_class = CustomRoute
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request, background_tasks: BackgroundTasks):
-    # Define the HTML page to return
-    html_content = """
-        <html>
-            <head>
-                <title>Pin 10 Monitor</title>
-            </head>
-            <body>
-                <h1>Pin 10 Monitor</h1>
-                <p>Status: <span id="status">Inactive</span></p>
-            </body>
-            <script>
-                var statusElement = document.getElementById("status");
-                var eventSource = new EventSource("/monitor");
-                eventSource.onmessage = function(event) {
-                    statusElement.textContent = event.data;
-                };
-            </script>
-        </html>
-    """
 
-    # Start the monitor_pin function as a background task
-    background_tasks.add_task(monitor_pin)
+def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
+    current_username_bytes = credentials.username.encode("utf8")
+    correct_username_bytes = b"jack is so cool"
+    is_correct_username = secrets.compare_digest(current_username_bytes, correct_username_bytes)
+    
+    current_password_bytes = credentials.password.encode("utf8")
+    correct_password_bytes = b"i, ian salyer agree"
+    is_correct_password = secrets.compare_digest(current_password_bytes, correct_password_bytes)
+    
+    if not (is_correct_username and is_correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
-    # Return the HTML page
-    return html_content
 
-@app.get("/monitor")
-async def monitor():
-    async def pin_stream():
-        while True:
-            yield "data: {}\n\n".format(GPIO.input(10))
-            await asyncio.sleep(1)
+@app.get("/")
+async def read_current_user(response: Response, str = Depends(get_current_username)):
+    global auth
+    auth = True
+    response.headers["Location"] = "/home"
+    response.status_code = 302
 
-    return StreamingResponse(pin_stream(), media_type="text/event-stream")
 
-if __name__ == '__main__':
-    uvicorn.run(app, host='192.168.1.105', port=8000)
+@app.get("/home", response_class=HTMLResponse)
+async def read_item(request: Request):
+    if auth:
+        return templates.TemplateResponse("index.html", {"request": request})
+    else:
+        return PlainTextResponse(content="UNAUTHORIZED")
+
+
+@app.get("/run")
+def runit(response: Response):
+    if auth:
+        monitor_pin = 10  # Pin 10 for the button
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(monitor_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+
+        async def event_stream():
+            while True:
+                if GPIO.input(monitor_pin) == GPIO.HIGH:
+                    yield "event: button_press\n"
+                    yield "data: {}\n\n"
+                await asyncio.sleep(0.1)
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+    else:
+        return PlainTextResponse(content="UNAUTHORIZED")
