@@ -101,7 +101,8 @@ def runit(response: Response):
 
 
 while True:
-    os.kill(os.getpid(), 9)
+    if GPIO.input(10) == GPIO.HIGH:
+        os.kill(os.getpid(), 9)
 
 
 if __name__ == "__main__":
