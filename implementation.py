@@ -71,7 +71,7 @@ async def read_current_user(response: Response, str = Depends(get_current_userna
     response.status_code = 302
 
 @app.get("/home", response_class=HTMLResponse)
-async def read_item(request: Request):
+def read_item(request: Request):
     if auth:
         return templates.TemplateResponse("index.html", {"request": request})
         while True:
