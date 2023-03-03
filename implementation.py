@@ -18,6 +18,9 @@ from starlette.responses import HTMLResponse
 from typing import Callable
 from uuid import UUID, uuid4
 
+# ----- vvv ----- #
+ip = "172.16.1.187"
+# ----- ^^^ ----- #
 
 class CustomRoute(APIRoute):
     def __init__(self, *args, **kwargs):
@@ -37,7 +40,6 @@ class CustomRoute(APIRoute):
 
 app = FastAPI()
 security = HTTPBasic()
-auth = False
 
 app.openapi = {"info": {"title": "Remote Shock", "verison": "1.0.0"}}
 app.router.route_class = CustomRoute
@@ -65,17 +67,20 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
 
 @app.get("/")
 async def read_current_user(response: Response, str = Depends(get_current_username)):
-    global auth
-    auth = True
-    response.headers["Location"] = "/home"
-    response.status_code = 302
+    client = request.client.host
 
-@app.get("/home", response_class=HTMLResponse)
+    if client == ip:
+        response.headers["Location"] = "/home"
+        response.status_code = 302
+    else:
+        return templates.TemplateResponse("unauthorized.html", {"request": request})
+
+@app.get("/home", request: Request, response_class=HTMLResponse)
 async def read_item(request: Request):
-    if auth:
+    if client == ip:
         return templates.TemplateResponse("index.html", {"request": request})
     else:
-        return PlainTextResponse(content="UNAUTHORIZED")
+        return templates.TemplateResponse("unathorized.hmtl", {"request": request})
     
 
 @app.get("/run")
