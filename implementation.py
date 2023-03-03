@@ -75,7 +75,7 @@ async def read_current_user(response: Response, str = Depends(get_current_userna
     else:
         return templates.TemplateResponse("unauthorized.html", {"request": request})
 
-@app.get("/home", response: response, response_class=HTMLResponse)
+@app.get("/home", response: Response, response_class=HTMLResponse)
 async def read_item(response: Response):    
     client = request.client.host
 
