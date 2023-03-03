@@ -19,7 +19,7 @@ from typing import Callable
 from uuid import UUID, uuid4
 
 # ----- vvv ----- #
-ip = "172.16.1.187"
+ip = "192.168.1.160"
 # ----- ^^^ ----- #
 
 class CustomRoute(APIRoute):
@@ -78,7 +78,7 @@ async def read_current_user(response: Response, str = Depends(get_current_userna
 @app.get("/home", request: Request, response_class=HTMLResponse)
 async def read_item(response: Response):    
     client = request.client.host
-    
+
     if client == ip:
         return templates.TemplateResponse("index.html", {"request": request})
     else:
