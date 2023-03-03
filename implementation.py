@@ -67,8 +67,8 @@ async def read_item(request: Request):
         return templates.TemplateResponse("unauthorized.html", {"request": request})
     
 
-@app.get("/run")
-def runit(response: Response):
+@app.get("/run", response_class=HTMLResponse)
+def runit(response: Response, request: Request):
     client = request.client.host
 
     if client == ip:
