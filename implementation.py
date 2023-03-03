@@ -65,8 +65,18 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
     return credentials.username
 
 
+# @app.get("/")
+# async def read_current_user(request: Request, response: Response, str = Depends(get_current_username)):
+#     client = request.client.host
+
+#     if client == ip:
+#         response.headers["Location"] = "/home"
+#         response.status_code = 302
+#     else:
+#         return templates.TemplateResponse("unathorized.html", {"request": request})
+
 @app.get("/")
-async def read_current_user(request: Request, response: Response, str = Depends(get_current_username)):
+async def read_current_user(request: Request, response: Response, str=Depends(get_current_username)):
     client = request.client.host
 
     if client == ip:
@@ -74,6 +84,7 @@ async def read_current_user(request: Request, response: Response, str = Depends(
         response.status_code = 302
     else:
         return templates.TemplateResponse("unathorized.html", {"request": request})
+
 
 @app.get("/home", response_class=HTMLResponse)
 async def read_item(request: Request):    
