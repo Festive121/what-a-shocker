@@ -18,6 +18,9 @@ from starlette.responses import HTMLResponse
 from typing import Callable
 from uuid import UUID, uuid4
 
+# ----- vvv ----- #
+ip = "192.168.1.160"
+# ----- ^^^ ----- #
 
 class CustomRoute(APIRoute):
     def __init__(self, *args, **kwargs):
@@ -36,8 +39,6 @@ class CustomRoute(APIRoute):
         return custom_route_handler
 
 app = FastAPI()
-security = HTTPBasic()
-auth = False
 
 app.openapi = {"info": {"title": "Remote Shock", "verison": "1.0.0"}}
 app.router.route_class = CustomRoute
@@ -45,42 +46,32 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
-def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
-    current_username_bytes = credentials.username.encode("utf8")
-    correct_username_bytes = b"jack is so cool"
-    is_correct_username = secrets.compare_digest(current_username_bytes, correct_username_bytes)
-    
-    current_password_bytes = credentials.password.encode("utf8")
-    correct_password_bytes = b"i, ian salyer agree"
-    is_correct_password = secrets.compare_digest(current_password_bytes, correct_password_bytes)
-    
-    if not (is_correct_username and is_correct_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return credentials.username
-
-
 @app.get("/")
-async def read_current_user(response: Response, str = Depends(get_current_username)):
-    global auth
-    auth = True
-    response.headers["Location"] = "/home"
-    response.status_code = 302
+async def read_current_user(request: Request, response: Response):
+    client = request.client.host
+
+    if client == ip:
+        response.headers["Location"] = "/home"
+        response.status_code = 302
+    else:
+        return templates.TemplateResponse("unauthorized.html", {"request": request})
+
 
 @app.get("/home", response_class=HTMLResponse)
-async def read_item(request: Request):
-    if auth:
+async def read_item(request: Request):    
+    client = request.client.host
+
+    if client == ip:
         return templates.TemplateResponse("index.html", {"request": request})
     else:
-        return PlainTextResponse(content="UNAUTHORIZED")
+        return templates.TemplateResponse("unauthorized.html", {"request": request})
     
 
-@app.get("/run")
-def runit(response: Response):
-    if auth:
+@app.get("/run", response_class=HTMLResponse)
+def runit(response: Response, request: Request):
+    client = request.client.host
+
+    if client == ip:
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         GPIO.setup(18, GPIO.OUT)
@@ -90,7 +81,7 @@ def runit(response: Response):
         response.headers["Location"] = "/"
         response.status_code = 302
     else:
-        return PlainTextResponse(content="UNAUTHORIZED")
+        return templates.TemplateResponse("unauthorized.html", {"request": request})
 
 
 if __name__ == "__main__":
