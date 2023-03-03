@@ -69,7 +69,9 @@ async def read_item(request: Request):
 
 @app.get("/run")
 def runit(response: Response):
-    if auth:
+    client = request.client.host
+
+    if client == ip:
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         GPIO.setup(18, GPIO.OUT)
@@ -79,7 +81,7 @@ def runit(response: Response):
         response.headers["Location"] = "/"
         response.status_code = 302
     else:
-        return PlainTextResponse(content="UNAUTHORIZED")
+        return templates.TemplateResponse("unauthorized.html", {"request": request})
 
 
 if __name__ == "__main__":
