@@ -82,7 +82,7 @@ async def read_item(request: Request):
     if client == ip:
         return templates.TemplateResponse("index.html", {"request": request})
     else:
-        return templates.TemplateResponse("unathorized.hmtl", {"request": request})
+        return templates.TemplateResponse("unathorized.html", {"request": request})
     
 
 @app.get("/run")
