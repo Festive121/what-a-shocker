@@ -73,7 +73,7 @@ async def read_current_user(request: Request, response: Response, str = Depends(
         response.headers["Location"] = "/home"
         response.status_code = 302
     else:
-        return templates.TemplateResponse("unauthorized.html", {"request": request})
+        return templates.TemplateResponse("unathorized.html", {"request": request})
 
 @app.get("/home", response_class=HTMLResponse)
 async def read_item(request: Request):    
