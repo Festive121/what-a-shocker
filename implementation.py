@@ -39,7 +39,6 @@ class CustomRoute(APIRoute):
         return custom_route_handler
 
 app = FastAPI()
-security = HTTPBasic()
 
 app.openapi = {"info": {"title": "Remote Shock", "verison": "1.0.0"}}
 app.router.route_class = CustomRoute
@@ -47,26 +46,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
-def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
-    current_username_bytes = credentials.username.encode("utf8")
-    correct_username_bytes = b"jack is so cool"
-    is_correct_username = secrets.compare_digest(current_username_bytes, correct_username_bytes)
-    
-    current_password_bytes = credentials.password.encode("utf8")
-    correct_password_bytes = b"i, ian salyer agree"
-    is_correct_password = secrets.compare_digest(current_password_bytes, correct_password_bytes)
-    
-    if not (is_correct_username and is_correct_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return credentials.username
-
-
 @app.get("/")
-async def read_current_user(request: Request, response: Response, str = Depends(get_current_username)):
+async def read_current_user(request: Request, response: Response):
     client = request.client.host
 
     if client == ip:
@@ -74,7 +55,7 @@ async def read_current_user(request: Request, response: Response, str = Depends(
         response.status_code = 302
     else:
         return templates.TemplateResponse("unathorized.html", {"request": request})
-        
+
 
 @app.get("/home", response_class=HTMLResponse)
 async def read_item(request: Request):    
