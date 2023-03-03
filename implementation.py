@@ -66,7 +66,7 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
 
 
 @app.get("/")
-async def read_current_user(response: Response, str = Depends(get_current_username)):
+async def read_current_user(response: Response, str = Depends(get_current_username), request: Request):
     client = request.client.host
 
     if client == ip:
