@@ -1,4 +1,4 @@
-# uvicorn main:app --host 192.168.1.105 --port 8000
+# uvicorn main:app --host localhost --port 8000
 # cloudflared tunnel --config /home/shack/.cloudflared/config.yaml run
 
 import asyncio
@@ -17,10 +17,6 @@ from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 from typing import Callable
 from uuid import UUID, uuid4
-
-# ----- vvv ----- #
-ip = "192.168.1.105"
-# ----- ^^^ ----- #
 
 class CustomRoute(APIRoute):
     def __init__(self, *args, **kwargs):
@@ -48,52 +44,37 @@ templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
 async def read_current_user(request: Request, response: Response):
-    client = request.client.host
-
-    if client == ip:
-        response.headers["Location"] = "/home"
-        response.status_code = 302
-    else:
-        return templates.TemplateResponse("unauthorized.html", {"request": request})
+    response.headers["Location"] = "/home"
+    response.status_code = 302
 
 
 @app.get("/home", response_class=HTMLResponse)
 async def read_item(request: Request):    
-    client = request.client.host
-
-    if client == ip:
-        return templates.TemplateResponse("index.html", {"request": request})
-    else:
-        return templates.TemplateResponse("unauthorized.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request})
     
 
 @app.get("/run", response_class=HTMLResponse)
 def runit(response: Response, request: Request):
-    client = request.client.host
+    import RPi.GPIO as GPIO
+    import time
 
-    if client == ip:
-        import RPi.GPIO as GPIO
-        import time
+    GPIO.setwarnings(False)
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setup(11, GPIO.OUT)
+    svo = GPIO.PWM(11,50)
+    svo.start(0)
+    
+    svo.ChangeDutyCycle(3)
+    time.sleep(.5)
+    svo.ChangeDutyCycle(2)
+    time.sleep(0.5)
+    svo.ChangeDutyCycle(0)
+    
+    svo.stop()
+    GPIO.cleanup()
 
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(11, GPIO.OUT)
-        svo = GPIO.PWM(11,50)
-        svo.start(0)
-        
-        svo.ChangeDutyCycle(3)
-        time.sleep(.5)
-        svo.ChangeDutyCycle(2)
-        time.sleep(0.5)
-        svo.ChangeDutyCycle(0)
-        
-        svo.stop()
-        GPIO.cleanup()
-
-        response.headers["Location"] = "/"
-        response.status_code = 302
-    else:
-        return templates.TemplateResponse("unauthorized.html", {"request": request})
+    response.headers["Location"] = "/"
+    response.status_code = 302
 
 
 if __name__ == "__main__":
