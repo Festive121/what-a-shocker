@@ -19,7 +19,7 @@ from typing import Callable
 from uuid import UUID, uuid4
 
 # ----- vvv ----- #
-ip = "192.168.1.160"
+ip = "192.168.1.105"
 # ----- ^^^ ----- #
 
 class CustomRoute(APIRoute):
@@ -72,12 +72,24 @@ def runit(response: Response, request: Request):
     client = request.client.host
 
     if client == ip:
-        GPIO.setmode(GPIO.BCM)
+        import RPi.GPIO as GPIO
+        import time
+
         GPIO.setwarnings(False)
-        GPIO.setup(18, GPIO.OUT)
-        GPIO.output(18, True)
-        time.sleep(1)
-        GPIO.output(18, False)
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(11, GPIO.OUT)
+        svo = GPIO.PWM(11,50)
+        svo.start(0)
+        
+        svo.ChangeDutyCycle(3)
+        time.sleep(.5)
+        svo.ChangeDutyCycle(2)
+        time.sleep(0.5)
+        svo.ChangeDutyCycle(0)
+        
+        svo.stop()
+        GPIO.cleanup()
+
         response.headers["Location"] = "/"
         response.status_code = 302
     else:
