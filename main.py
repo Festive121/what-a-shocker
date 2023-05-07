@@ -1,5 +1,4 @@
-# uvicorn main:app --host localhost --port 8000
-# cloudflared tunnel --config /home/shack/.cloudflared/config.yaml run
+# ./parallel_commands "uvicorn main:app --host localhost --port 8000" "cloudflared tunnel --config /home/shack/.cloudflared/config.yaml run"
 
 import asyncio
 import RPi.GPIO as GPIO
@@ -8,15 +7,16 @@ import subprocess
 import time
 import uvicorn
 from fastapi import FastAPI, Depends, Request, Response, HTTPException, status
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import HTMLResponse
 from typing import Callable
-from uuid import UUID, uuid4
+import uuid
 
 class CustomRoute(APIRoute):
     def __init__(self, *args, **kwargs):
@@ -35,6 +35,8 @@ class CustomRoute(APIRoute):
         return custom_route_handler
 
 app = FastAPI()
+# home = "/" + str(UUID)
+# run = "/" + UUID
 
 app.openapi = {"info": {"title": "Remote Shock", "verison": "1.0.0"}}
 app.router.route_class = CustomRoute
@@ -42,19 +44,34 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
-@app.get("/")
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request, exc):
+    return RedirectResponse("/unauthorized")
+
+
+@app.get("/unauthorized")
+async def unauth(request: Request):
+    return templates.TemplateResponse("unauthorized.html", {"request": request})
+
+
+@app.get("/shocking-isnt-it")
 async def read_current_user(request: Request, response: Response):
-    response.headers["Location"] = "/home"
-    response.status_code = 302
+    id = uuid.uuid4()
+    home = str(id) + "/home/"
+
+    return RedirectResponse(home)
 
 
-@app.get("/home", response_class=HTMLResponse)
-async def read_item(request: Request):    
+@app.get("/{id}/home", response_class=HTMLResponse)
+async def read_item(id: uuid.UUID, request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
     
 
 @app.get("/run", response_class=HTMLResponse)
 def runit(response: Response, request: Request):
+    id = uuid.uuid4()
+    home = str(id) + "/home/"
+
     import RPi.GPIO as GPIO
     import time
 
@@ -73,8 +90,7 @@ def runit(response: Response, request: Request):
     svo.stop()
     GPIO.cleanup()
 
-    response.headers["Location"] = "/"
-    response.status_code = 302
+    return RedirectResponse(home)
 
 
 if __name__ == "__main__":
