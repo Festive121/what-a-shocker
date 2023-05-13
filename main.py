@@ -16,7 +16,16 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import HTMLResponse
 from typing import Callable
+from threading import Thread, Lock
+import time
 import uuid
+
+SLEEP_TIME_S = 10
+TIMEOUT_S = 120
+
+run_lock = Lock()
+time_of_last_run = None
+
 
 class CustomRoute(APIRoute):
     def __init__(self, *args, **kwargs):
@@ -33,6 +42,7 @@ class CustomRoute(APIRoute):
             return response
 
         return custom_route_handler
+
 
 app = FastAPI()
 # home = "/" + str(UUID)
@@ -54,7 +64,7 @@ async def unauth(request: Request):
     return templates.TemplateResponse("unauthorized.html", {"request": request})
 
 
-@app.get("/shocking-isnt-it")
+@app.get("/key-url")
 async def read_current_user(request: Request, response: Response):
     id = uuid.uuid4()
     home = str(id) + "/home/"
@@ -65,33 +75,52 @@ async def read_current_user(request: Request, response: Response):
 @app.get("/{id}/home", response_class=HTMLResponse)
 async def read_item(id: uuid.UUID, request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
-    
+
+
+def run():
+    GPIO.setwarnings(False)
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setup(11, GPIO.OUT)
+    svo = GPIO.PWM(11, 50)
+    svo.start(0)
+
+    svo.ChangeDutyCycle(3)
+    time.sleep(.5)
+    svo.ChangeDutyCycle(2)
+    time.sleep(0.5)
+    svo.ChangeDutyCycle(0)
+
+    svo.stop()
+    GPIO.cleanup()
+
 
 @app.get("/run", response_class=HTMLResponse)
 def runit(response: Response, request: Request):
     id = uuid.uuid4()
     home = str(id) + "/home/"
 
-    import RPi.GPIO as GPIO
-    import time
+    current_time = time.monotonic()
+    run_lock.acquire()
 
-    GPIO.setwarnings(False)
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(11, GPIO.OUT)
-    svo = GPIO.PWM(11,50)
-    svo.start(0)
-    
-    svo.ChangeDutyCycle(3)
-    time.sleep(.5)
-    svo.ChangeDutyCycle(2)
-    time.sleep(0.5)
-    svo.ChangeDutyCycle(0)
-    
-    svo.stop()
-    GPIO.cleanup()
 
-    return RedirectResponse(home)
+run()
+time_of_last_run = current_time
+run_lock.release()
+
+return RedirectResponse(home)
+
+
+def run_timer_check():
+    while True:
+        run_lock.aquire()
+        current_time = time.monotonic()
+        if time_of_last_run is None or current_time - time_of_last_run > 0.75 * TIMEOUT_S:
+            runit()
+            time_of_last_run = current_time
+        run_lock.release()
+        time.sleep(SLEEP_TIME_S)
 
 
 if __name__ == "__main__":
+    background_thread = Thread(target=run_timer_check)
     uvicorn.run(app, host='192.168.1.105', port=8000)
